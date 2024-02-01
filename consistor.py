@@ -26,6 +26,18 @@ def set_name_player(name):
 def get_name_player():
     return name_player
 
+def get_lifes(target):
+    if target == "Player":
+        return lifes_player
+    elif target == "Dealer":
+        return lifes_dealer
+
+def set_lifes(target, lifes):
+    if target == "Player":
+        set_lifes_player(lifes)
+    elif target == "Dealer":
+        set_lifes_dealer(lifes)
+
 # Bullets
 bullets = [2]
 blanks = 0

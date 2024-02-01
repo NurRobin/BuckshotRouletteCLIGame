@@ -24,6 +24,11 @@ def print_top_left_and_right(left_text, right_text):
     columns = shutil.get_terminal_size().columns
     print(left_text.ljust(columns // 2) + right_text.rjust(columns // 2))
 
+def print_and_sleep(*args):
+    for arg in args:
+        print_centered(arg)
+        time.sleep(1)
+
 class GameState:
     def __init__(self):
         self.state = "Intro"
@@ -78,144 +83,69 @@ class GameState:
         self.players_turn()
 
 
-    def shoot(self, caller, target):
+    def shoot(self, shooter, target):
         is_lethal = self.bullets.get_current_bullet() == 1
+        self.shoot_target(shooter, target, is_lethal)
 
-        if caller == "Player":
-            if target == "Dealer":
-                self.player_shoots_dealer(is_lethal)
-            else:  # target == "Player"
-                self.player_shoots_self(is_lethal)
-        else:  # caller == "Dealer"
-            if target == "Player":
-                self.dealer_shoots_player(is_lethal)
-            else:  # target == "Dealer"
-                self.dealer_shoots_self(is_lethal)
+    def shoot_target(self, shooter, target, is_lethal):
+        lifes = self.consistor.get_lifes(target)
+        lifes -= 2 if self.consistor.get_saw_active() else 1 if is_lethal else 0
+        self.consistor.set_lifes(target, lifes)
+        self.consistor.set_lethals(self.consistor.get_lethals() - 1 if is_lethal else self.consistor.get_lethals())
+        self.consistor.set_blanks(self.consistor.get_blanks() - 1 if not is_lethal else self.consistor.get_blanks())
 
-    def player_shoots_dealer(self, is_lethal):
-        if is_lethal:
-            if self.consistor.get_saw_active():
-                self.consistor.set_lifes_dealer(self.consistor.get_lifes_dealer() - 2)
-            else:
-                self.consistor.set_lifes_dealer(self.consistor.get_lifes_dealer() - 1)
-            self.consistor.set_lethals(self.consistor.get_lethals() - 1)
-            self.print_and_sleep("You aim at the dealer...", "...and shoot!")
-            self.consistor.set_saw_active(False)
-            self.check_dealer_lifes()
-        else:  # is_blank
-            self.consistor.set_blanks(self.consistor.get_blanks() - 1)
-            self.print_and_sleep("You aim at the dealer...", "...and shoot!", "It's a blank!")
-            self.consistor.set_saw_active(False)
-        self.next_turn("Dealer")
-
-    def player_shoots_self(self, is_lethal):
-        if is_lethal:
-            if self.consistor.get_saw_active():
-                self.consistor.set_lifes_player(self.consistor.get_lifes_dealer() - 2)
-            else:
-                self.consistor.set_lifes_player(self.consistor.get_lifes_dealer() - 1)
-            self.consistor.set_lethals(self.consistor.get_lethals() - 1)
-            self.print_and_sleep("You aim at yourself...", "...and shoot!")
-            self.check_player_lifes()
-            self.consistor.set_saw_active(False)
-            self.next_turn("Dealer")
-        else:  # is_blank
-            self.consistor.set_blanks(self.consistor.get_blanks() - 1)
-            self.print_and_sleep("You aim at yourself...", "...and shoot!", "It's a blank!")
-            self.consistor.set_saw_active(False)
-            self.next_turn("Player")
-
-    def dealer_shoots_player(self, is_lethal):
-        if is_lethal:
-            if self.consistor.get_saw_active():
-                self.consistor.set_lifes_player(self.consistor.get_lifes_player() - 2)
-            else:
-                self.consistor.set_lifes_player(self.consistor.get_lifes_player() - 1)
-            self.consistor.set_lethals(self.consistor.get_lethals() - 1)
-            self.print_and_sleep("The dealer aims at you...", "...and shoots!")
-            self.consistor.set_saw_active(False)
-            self.check_player_lifes()
-        else:  # is_blank
-            self.consistor.set_blanks(self.consistor.get_blanks() - 1)
-            self.print_and_sleep("The dealer aims at you...", "...and shoots!", "It's a blank!")
-            self.consistor.set_saw_active(False)
-        self.next_turn("Player")
-
-    def dealer_shoots_self(self, is_lethal):
-        if is_lethal:
-            if self.consistor.get_saw_active():
-                self.consistor.set_lifes_dealer(self.consistor.get_lifes_dealer() - 2)
-            else:
-                self.consistor.set_lifes_dealer(self.consistor.get_lifes_dealer() - 1)
-            self.consistor.set_lethals(self.consistor.get_lethals() - 1)
-            self.print_and_sleep("The dealer aims at himself...", "...and shoots!")
-            self.check_dealer_lifes()
-            self.consistor.set_saw_active(False)
-            self.next_turn("Player")
-        else:  # is_blank
-            self.consistor.set_blanks(self.consistor.get_blanks() - 1)
-            self.print_and_sleep("The dealer aims at himself...", "...and shoots!", "It's a blank!")
-            self.consistor.set_saw_active(False)
-            self.next_turn("Dealer")
-
-    def print_and_sleep(self, *messages):
-        for message in messages:
-            print_centered(message)
-            time.sleep(2)
-
-    def check_dealer_lifes(self):
-        if self.consistor.get_lifes_dealer() <= 0:
-            self.win()
+        if shooter == target:
+            message = "The Dealer aims at itself..." if shooter == "Dealer" else "You aim at yourself..."
         else:
-            print_centered("The dealer is hit!")
-            self.print_and_sleep("The dealer has " + str(self.consistor.get_lifes_dealer()) + " lifes left.")
+            message = "You aim at the Dealer..." if shooter == "Player" else "The Dealer aims at you..."
 
-    def check_player_lifes(self):
-        if self.consistor.get_lifes_player() <= 0:
-            self.lose()
+        if is_lethal:
+            action = "...and shoot!" if shooter == "Player" else "...and shoots!"
+            hit_message = "The Dealer is hit!" if shooter == "Player" else "You are hit!"
+            print_and_sleep(message, action)
+            print_and_sleep(hit_message)
         else:
-            print_centered("You are hit!")
-            self.print_and_sleep("You have " + str(self.consistor.get_lifes_player()) + " lifes left.")
+            action = "...and shoot!" if shooter == "Player" else "...and shoots!"
+            print_and_sleep(message, action, "It's a blank!")
+
+        self.consistor.set_saw_active(False)
+        self.check_lifes(target)
+        self.next_turn(target)
+
+    def check_lifes(self, target):
+        lifes = self.consistor.get_lifes(target)
+        if lifes <= 0:
+            self.win() if target == "Dealer" else self.lose()
+        else:
+            print_and_sleep(f"{target} has {lifes} lifes left.")
 
     def next_turn(self, next_caller, cuff_call=False):
         clear_console()
         self.bullets.ready_next_bullet()
-        if cuff_call == None:
-            cuff_call = False
-        if cuff_call == False and self.consistor.get_cuffs() > 0:
+        if not cuff_call and self.consistor.get_cuffs() > 0:
             self.consistor.set_cuffs(self.consistor.get_cuffs() - 1)
-            if next_caller == "Dealer":
-                print_centered("The dealer is restrained!")
-                time.sleep(2)
-                self.next_turn("Player", True)
-            elif next_caller == "Player":
-                print_centered("You are restrained!")
-                time.sleep(2)
-                self.next_turn("Dealer", True)
+            print_centered(f"{next_caller} is restrained!")
+            time.sleep(2)
+            self.next_turn("Player" if next_caller == "Dealer" else "Dealer", True)
         else:
-            if next_caller == "Dealer":
-                self.dealers_turn()
-            else:  # next_caller == "Player"
-                self.players_turn()
+            self.dealers_turn() if next_caller == "Dealer" else self.players_turn()
 
-
-    def win(self):
+    def game_over(self, message, next_state):
         clear_console()
-        print_centered("You won!")
-        print_centered("Press Enter to play again")
+        print_centered(message)
+        print_centered("Press Enter to continue")
         print_centered("Press Escape to quit")
         choice = input()
-        if choice == "Escape":
+        if choice.lower() == "escape":
             exit()
         else:
-            self.game()
+            next_state()
+
+    def win(self):
+        self.game_over("You won!", self.game)
 
     def lose(self):
-        clear_console()
-        print_centered("You lost!")
-        print_centered("Press Enter to continue")
-        input()
-        self.next_state()
+        self.game_over("You lost!", self.next_state)
 
     def players_turn(self, new_items=True):
         if new_items:
@@ -461,6 +391,7 @@ class GameState:
             return True
         else:
             return False
+
 def main():
     game = GameState()
     while True:
